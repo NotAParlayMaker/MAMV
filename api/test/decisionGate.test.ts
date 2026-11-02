@@ -48,8 +48,8 @@ describe('Decision gate integration', () => {
       provenance: {
         provider: 'openai',
         model: 'gpt-4-turbo',
-        prompt_hash: '0x' + '55'.repeat(32),
-        response_hash: '0x' + '66'.repeat(32),
+        prompt_hash: `0x${'55'.repeat(32)}` as const,
+        response_hash: `0x${'66'.repeat(32)}` as const,
         started_at: 1700000000,
         finished_at: 1700000010,
         latency_ms: 10000,

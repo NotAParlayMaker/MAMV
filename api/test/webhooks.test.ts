@@ -10,7 +10,7 @@
  */
 
 import { expect } from 'chai';
-import { WebhookService, WebhookEvent, WebhookSubscription } from '../src/services/webhooks';
+import { WebhookService, WebhookEvent } from '../src/services/webhooks';
 import * as crypto from 'crypto';
 import axios from 'axios';
 import * as sinon from 'sinon';
@@ -20,7 +20,8 @@ describe('WebhookService', () => {
   let axiosStub: sinon.SinonStub;
 
   beforeEach(() => {
-    webhookService = new WebhookService();
+    // Short backoff keeps retry tests fast while preserving exponential growth.
+    webhookService = new WebhookService({ retryDelayMs: 10 });
     // Stub axios to prevent actual HTTP requests
     axiosStub = sinon.stub(axios, 'post');
   });
@@ -79,7 +80,7 @@ describe('WebhookService', () => {
       webhookService.subscribe('https://example.com/webhook1', 'secret1', [WebhookEvent.JOB_COMPLETED]);
       webhookService.subscribe('https://example.com/webhook2', 'secret2', [WebhookEvent.JOB_CREATED]);
 
-      const subscriptions = webhookService.listSubscriptions();
+      const subscriptions = webhookService.getSubscriptions();
 
       expect(subscriptions).to.have.lengthOf(2);
     });
@@ -110,7 +111,7 @@ describe('WebhookService', () => {
         [WebhookEvent.JOB_COMPLETED]
       );
 
-      webhookService.disableSubscription(sub.id);
+      webhookService.updateSubscription(sub.id, { enabled: false });
 
       const updated = webhookService.getSubscription(sub.id);
       expect(updated?.enabled).to.be.false;
@@ -123,8 +124,8 @@ describe('WebhookService', () => {
         [WebhookEvent.JOB_COMPLETED]
       );
 
-      webhookService.disableSubscription(sub.id);
-      webhookService.enableSubscription(sub.id);
+      webhookService.updateSubscription(sub.id, { enabled: false });
+      webhookService.updateSubscription(sub.id, { enabled: true });
 
       const updated = webhookService.getSubscription(sub.id);
       expect(updated?.enabled).to.be.true;
@@ -197,7 +198,7 @@ describe('WebhookService', () => {
         [WebhookEvent.JOB_COMPLETED]
       );
 
-      webhookService.disableSubscription(sub.id);
+      webhookService.updateSubscription(sub.id, { enabled: false });
 
       await webhookService.send(WebhookEvent.JOB_COMPLETED, 'job-123', {});
 
@@ -306,9 +307,7 @@ describe('WebhookService', () => {
   // ============================================================================
 
   describe('Retry Logic', () => {
-    it('Should retry on delivery failure', async function () {
-      this.timeout(5000);
-
+    it('Should retry on delivery failure', async () => {
       let attempts = 0;
       axiosStub.callsFake(async () => {
         attempts++;
@@ -329,9 +328,7 @@ describe('WebhookService', () => {
       expect(attempts).to.equal(3);
     });
 
-    it('Should use exponential backoff for retries', async function () {
-      this.timeout(5000);
-
+    it('Should use exponential backoff for retries', async () => {
       const timestamps: number[] = [];
 
       axiosStub.callsFake(async () => {
@@ -360,9 +357,7 @@ describe('WebhookService', () => {
       }
     });
 
-    it('Should stop retrying after max attempts', async function () {
-      this.timeout(10000);
-
+    it('Should stop retrying after max attempts', async () => {
       axiosStub.rejects(new Error('Always fails'));
 
       webhookService.subscribe(
@@ -398,9 +393,7 @@ describe('WebhookService', () => {
       expect(updated?.deliveryCount).to.equal(1);
     });
 
-    it('Should increment failure count on failure', async function () {
-      this.timeout(5000);
-
+    it('Should increment failure count on failure', async () => {
       axiosStub.rejects(new Error('Network error'));
 
       const sub = webhookService.subscribe(
@@ -415,7 +408,7 @@ describe('WebhookService', () => {
       expect(updated?.failureCount).to.equal(1);
     });
 
-    it('Should update lastDeliveryAt on success', async () => {
+    it('Should update lastDelivery on success', async () => {
       axiosStub.resolves({ status: 200, data: {} });
 
       const sub = webhookService.subscribe(
@@ -429,13 +422,11 @@ describe('WebhookService', () => {
       const afterSend = Date.now();
 
       const updated = webhookService.getSubscription(sub.id);
-      expect(updated?.lastDeliveryAt).to.be.greaterThanOrEqual(beforeSend);
-      expect(updated?.lastDeliveryAt).to.be.lessThanOrEqual(afterSend);
+      expect(updated?.lastDelivery).to.be.greaterThanOrEqual(beforeSend);
+      expect(updated?.lastDelivery).to.be.lessThanOrEqual(afterSend);
     });
 
-    it('Should update lastFailureAt on failure', async function () {
-      this.timeout(5000);
-
+    it('Should update lastFailure on failure', async () => {
       axiosStub.rejects(new Error('Network error'));
 
       const sub = webhookService.subscribe(
@@ -449,13 +440,11 @@ describe('WebhookService', () => {
       const afterSend = Date.now();
 
       const updated = webhookService.getSubscription(sub.id);
-      expect(updated?.lastFailureAt).to.be.greaterThanOrEqual(beforeSend);
-      expect(updated?.lastFailureAt).to.be.lessThanOrEqual(afterSend);
+      expect(updated?.lastFailure).to.be.greaterThanOrEqual(beforeSend);
+      expect(updated?.lastFailure).to.be.lessThanOrEqual(afterSend);
     });
 
-    it('Should auto-disable after excessive failures', async function () {
-      this.timeout(10000);
-
+    it('Should auto-disable after excessive failures', async () => {
       axiosStub.rejects(new Error('Always fails'));
 
       const sub = webhookService.subscribe(
@@ -518,9 +507,7 @@ describe('WebhookService', () => {
       expect(payload.data).to.deep.equal(complexData);
     });
 
-    it('Should handle HTTP timeout', async function () {
-      this.timeout(10000);
-
+    it('Should handle HTTP timeout', async () => {
       axiosStub.rejects({ code: 'ECONNABORTED' });
 
       webhookService.subscribe(
@@ -578,9 +565,7 @@ describe('WebhookService', () => {
   // ============================================================================
 
   describe('Performance', () => {
-    it('Should handle high volume of deliveries', async function () {
-      this.timeout(5000);
-
+    it('Should handle high volume of deliveries', async () => {
       axiosStub.resolves({ status: 200, data: {} });
 
       webhookService.subscribe(

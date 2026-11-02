@@ -1,12 +1,16 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const client = require('prom-client') as {
-  Registry: new () => {
-    setDefaultLabels: (labels: Record<string, string>) => void;
-  };
+  Registry: new () => PromRegistry;
   collectDefaultMetrics: (params: { register: unknown }) => void;
   Gauge: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { set: (value: number) => void } };
   Histogram: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { observe: (value: number) => void } };
   Counter: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { inc: (value?: number) => void } };
+};
+
+type PromRegistry = {
+  setDefaultLabels: (labels: Record<string, string>) => void;
+  metrics: () => Promise<string>;
+  contentType: string;
 };
 
 type Metric = {
@@ -21,7 +25,7 @@ type Metric = {
 };
 
 export type MetricsRegistry = {
-  register: { setDefaultLabels: (labels: Record<string, string>) => void };
+  register: PromRegistry;
   metrics: {
     queueDepth: Metric;
     activeJobs: Metric;

@@ -109,7 +109,7 @@ function buildMockClaims(output: string): Claim[] {
         },
       ],
       contradictions: [],
-      confidence: 0.87,
+      process_confidence: 0.87,
       entities: ['Mock'],
       temporal: ['2024'],
     },

@@ -34,7 +34,10 @@ export interface WebhookSubscription {
   enabled: boolean;
   createdAt: number;
   lastDelivery?: number;
+  /** Timestamp of the most recent delivery that failed after all retries. */
+  lastFailure?: number;
   deliveryCount: number;
+  /** Number of deliveries that failed after exhausting all retries. */
   failureCount: number;
 }
 
@@ -57,14 +60,27 @@ export interface WebhookDelivery {
   deliveredAt?: number;
 }
 
+export interface WebhookServiceOptions {
+  /** Retries after the initial attempt (default 3). */
+  maxRetries?: number;
+  /** Base backoff delay in ms, doubled on each retry (default 1000). */
+  retryDelayMs?: number;
+  /** Failed deliveries before a subscription is auto-disabled (default 10). */
+  maxFailures?: number;
+}
+
 export class WebhookService extends EventEmitter {
   private subscriptions: Map<string, WebhookSubscription> = new Map();
   private deliveries: Map<string, WebhookDelivery> = new Map();
-  private maxRetries = 3;
-  private retryDelay = 1000; // Base delay in ms
+  private maxRetries: number;
+  private retryDelay: number; // Base delay in ms
+  private maxFailures: number;
 
-  constructor() {
+  constructor(options: WebhookServiceOptions = {}) {
     super();
+    this.maxRetries = options.maxRetries ?? 3;
+    this.retryDelay = options.retryDelayMs ?? 1000;
+    this.maxFailures = options.maxFailures ?? 10;
   }
 
   /**
@@ -195,8 +211,6 @@ export class WebhookService extends EventEmitter {
       delivery.statusCode = error.response?.status;
       delivery.error = error.message;
 
-      subscription.failureCount++;
-
       console.error(`✗ Webhook delivery failed to ${subscription.url}: ${error.message}`);
 
       // Retry with exponential backoff
@@ -209,8 +223,12 @@ export class WebhookService extends EventEmitter {
       } else {
         console.error(`✗ Webhook delivery failed after ${this.maxRetries} retries`);
 
+        // Count the delivery as failed once, not once per retry attempt.
+        subscription.failureCount++;
+        subscription.lastFailure = Date.now();
+
         // Disable subscription if too many failures
-        if (subscription.failureCount >= 10) {
+        if (subscription.failureCount >= this.maxFailures) {
           subscription.enabled = false;
           console.log(`⚠️  Subscription disabled due to repeated failures: ${subscription.id}`);
         }
@@ -235,14 +253,22 @@ export class WebhookService extends EventEmitter {
     signature: string,
     secret: string
   ): boolean {
+    if (typeof signature !== 'string') {
+      return false;
+    }
+
     const hmac = crypto.createHmac('sha256', secret);
     hmac.update(JSON.stringify(payload));
-    const expectedSignature = hmac.digest('hex');
+    const expected = Buffer.from(hmac.digest('hex'));
+    const provided = Buffer.from(signature);
 
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+    // timingSafeEqual throws on length mismatch; a malformed signature is
+    // simply invalid.
+    if (provided.length !== expected.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(provided, expected);
   }
 
   /**

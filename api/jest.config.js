@@ -32,7 +32,4 @@ module.exports = {
   testTimeout: 10000,
   verbose: true,
   setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
-  moduleNameMapper: {
-    '^prom-client$': '<rootDir>/test/mocks/prom-client.ts',
-  },
 };

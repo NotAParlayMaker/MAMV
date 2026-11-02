@@ -9,7 +9,7 @@ export const permissions = {
 } as const satisfies Record<string, readonly OrganizationRole[]>;
 
 export function can(role: OrganizationRole | undefined, permission: keyof typeof permissions): boolean {
-  return !!role && permissions[permission].includes(role);
+  return !!role && (permissions[permission] as readonly OrganizationRole[]).includes(role);
 }
 export function requireOrganizationRole(context: OrganizationContext, permission: keyof typeof permissions): void {
   if (!can(context.role, permission)) { const error = new Error('Forbidden'); (error as Error & { status: number }).status = 403; throw error; }
