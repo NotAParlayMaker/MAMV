@@ -252,12 +252,13 @@ export function generateTraceFromClaims(
       );
     }
 
-    // Verification: Claim assessment
-    const confidence = claim.process_confidence ?? 0.5;
+    // Verification: Claim assessment. Confidence is left unset: claim
+    // extraction confidence (process_confidence) does not establish
+    // confidence in the evidentiary assessment, and no separate assessment
+    // supplies one here.
     builder.addVerification(
       `Claim "${claim.text}" has ${supportCount} supporting and ${contradictionCount} contradicting sources`,
-      `Claim verified: ${supportCount} support, ${contradictionCount} contradict`,
-      confidence
+      `Claim verified: ${supportCount} support, ${contradictionCount} contradict`
     );
   }
 }
