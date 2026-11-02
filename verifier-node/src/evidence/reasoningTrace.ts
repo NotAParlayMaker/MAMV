@@ -253,7 +253,7 @@ export function generateTraceFromClaims(
     }
 
     // Verification: Claim assessment
-    const confidence = claim.confidence ?? 0.5;
+    const confidence = claim.process_confidence ?? 0.5;
     builder.addVerification(
       `Claim "${claim.text}" has ${supportCount} supporting and ${contradictionCount} contradicting sources`,
       `Claim verified: ${supportCount} support, ${contradictionCount} contradict`,

@@ -4,6 +4,7 @@ import {
   getIdempotencyRecord,
   setIdempotencyRecord,
 } from '../src/services/idempotency';
+import type { VerifyResponse } from '../../shared/httpSchemas';
 
 describe('Idempotency Store', () => {
   beforeEach(() => {
@@ -11,7 +12,7 @@ describe('Idempotency Store', () => {
   });
 
   it('Stores and retrieves responses by key', () => {
-    const response = {
+    const response: VerifyResponse = {
       task_id: '123',
       status: 'queued',
       verdict: 'unknown',

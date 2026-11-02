@@ -490,7 +490,7 @@ export function createClaim(
   support: Evidence[],
   contradictions: Evidence[],
   metadata?: {
-    confidence?: number;
+    process_confidence?: number;
     entities?: string[];
     temporal?: string[];
   }
@@ -501,7 +501,7 @@ export function createClaim(
     type,
     support,
     contradictions,
-    confidence: metadata?.confidence,
+    process_confidence: metadata?.process_confidence,
     entities: metadata?.entities,
     temporal: metadata?.temporal,
   };

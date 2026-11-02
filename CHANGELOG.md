@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Open-source contribution, issue, pull-request, branch-protection, and release-process documentation.
 
+### Fixed
+
+- `package-lock.json` is back in sync with the workspaces, so `npm ci` works again.
+- API decision gate and MAMV verifier imports now resolve: the leftover `mmv*` service modules are renamed to `mamv*`.
+- Shared schema validation now gets Ajv 8 instead of the hoisted Ajv 6, so validation error paths are reported correctly.
+- `WebhookService.verifySignature` returns `false` for a malformed signature instead of throwing. A webhook's `failureCount` now counts each failed delivery once, not once per retry attempt.
+- The API Jest suite runs again: hoisted `@types` resolve, the real `prom-client` is used, and stale tests now match the current APIs.
+- Claim-extraction confidence callers use `process_confidence`.
+
 ## [0.1.0] - 2026-07-19
 
 ### Added
