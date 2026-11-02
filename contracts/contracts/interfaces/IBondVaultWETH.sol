@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./IWETH.sol";
+
 /**
  * @title IBondVaultWETH
  * @notice Interface for centralized WETH bond management
@@ -37,7 +39,7 @@ interface IBondVaultWETH {
      * @notice Get WETH token address
      * @return WETH contract address
      */
-    function WETH() external view returns (address);
+    function WETH() external view returns (IWETH);
 
     /**
      * @notice Get free (unlocked) bond balance for user
@@ -135,7 +137,11 @@ interface IBondVaultWETH {
 
     /**
      * @notice Slash bond as penalty
-     * @dev Only callable by authorized contracts (DisputeLadder)
+     * @dev Only callable by authorized contracts (DisputeLadder). The slash is
+     * capped at the user's total balance. The locked share is reduced
+     * proportionally across active task locks, with integer rounding carried
+     * across tasks so their sum equals totalLockedOf. Cost scales with the
+     * user's active task count; refId is an audit reference, not a task selector.
      * @param refId Reference ID (disputeId or taskId)
      * @param user User to slash
      * @param amount Amount to slash

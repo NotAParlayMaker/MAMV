@@ -7,6 +7,8 @@ import "./libraries/VerifierTypes.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title BondVaultWETH
@@ -28,6 +30,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * 6. Emergency control: Pausable for production safety
  */
 contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
+    using EnumerableSet for EnumerableSet.Bytes32Set;
     // ========================================================================
     // Immutable State
     // ========================================================================
@@ -54,6 +57,9 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
     /// @notice Locked bond for specific user+task
     /// @dev taskId => user => locked amount
     mapping(bytes32 => mapping(address => uint256)) public lockedBondOf;
+
+    /// @dev Only tasks with a nonzero lock are retained for proportional slashing.
+    mapping(address => EnumerableSet.Bytes32Set) private lockedTasksOf;
 
     // ========================================================================
     // Constructor
@@ -199,6 +205,7 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         // Update accounting
         lockedBondOf[taskId][user] += amount;
         totalLockedOf[user] += amount;
+        lockedTasksOf[user].add(taskId);
 
         emit BondLocked(taskId, user, amount, block.timestamp);
     }
@@ -222,6 +229,9 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         // Update accounting
         lockedBondOf[taskId][user] -= amount;
         totalLockedOf[user] -= amount;
+        if (lockedBondOf[taskId][user] == 0) {
+            lockedTasksOf[user].remove(taskId);
+        }
 
         emit BondUnlocked(taskId, user, amount, block.timestamp);
     }
@@ -232,7 +242,10 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
 
     /**
      * @notice Slash bond as penalty for dispute resolution
-     * @dev Only callable by DisputeLadder
+     * @dev Only callable by DisputeLadder. Reduces free and locked balances
+     * proportionally, distributing the locked reduction across active tasks.
+     * Rounding remainder is carried into later tasks so task locks always sum
+     * to totalLockedOf. Gas usage scales with the user's active task count.
      * @param refId Reference ID (disputeId or taskId)
      * @param user User to slash
      * @param amount Amount to slash
@@ -258,11 +271,24 @@ contract BondVaultWETH is IBondVaultWETH, ReentrancyGuard, Pausable, Ownable {
         // Update accounting
         totalBondOf[user] -= slashAmount;
 
-        // If user has locked bonds, reduce those proportionally
-        if (totalLockedOf[user] > 0) {
-            uint256 lockedReduction = (totalLockedOf[user] * slashAmount) / (slashAmount + (available - slashAmount));
-            if (lockedReduction > totalLockedOf[user]) lockedReduction = totalLockedOf[user];
-            totalLockedOf[user] -= lockedReduction;
+        uint256 remainingLocked = totalLockedOf[user];
+        uint256 lockedReduction = Math.mulDiv(remainingLocked, slashAmount, available);
+        totalLockedOf[user] -= lockedReduction;
+
+        // Walk backwards so removing a depleted task cannot skip an entry.
+        // Allocate against the remaining weight to account for every wei.
+        uint256 remainingReduction = lockedReduction;
+        for (uint256 i = lockedTasksOf[user].length(); i > 0 && remainingReduction > 0; ) {
+            --i;
+            bytes32 taskId = lockedTasksOf[user].at(i);
+            uint256 taskLocked = lockedBondOf[taskId][user];
+            uint256 reduction = Math.mulDiv(taskLocked, remainingReduction, remainingLocked);
+            lockedBondOf[taskId][user] = taskLocked - reduction;
+            remainingLocked -= taskLocked;
+            remainingReduction -= reduction;
+            if (taskLocked == reduction) {
+                lockedTasksOf[user].remove(taskId);
+            }
         }
 
         // Transfer slashed WETH to recipient
