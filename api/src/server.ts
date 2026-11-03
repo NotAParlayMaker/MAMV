@@ -30,6 +30,7 @@ import { isMockChainEnabled, isMockVerifierEnabled } from './utils/mockMode';
 import { apiMetrics } from './observability/metrics';
 import { organizationRoutes } from './routes/organizations';
 import { receiptRoutes } from './routes/receipts';
+import { resolveCorsOptions, securityConfigIsFatal, securityConfigProblems } from './middleware/security';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env.runtime') });
 dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
@@ -44,12 +45,18 @@ const server = createServer(app);
 // Create WebSocket server
 const wss = new WebSocketServer({ server, path: '/ws' });
 
+// Security configuration: fatal in production, warnings elsewhere.
+const securityProblems = securityConfigProblems();
+if (securityProblems.length) {
+  if (securityConfigIsFatal()) {
+    throw new Error(`Insecure API configuration: ${securityProblems.join('; ')}`);
+  }
+  securityProblems.forEach((problem) => logger.warn(`Security configuration: ${problem}`));
+}
+
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true,
-}));
+app.use(cors(resolveCorsOptions()));
 app.use(express.json({ limit: process.env.EDUCATION_MAX_PAYLOAD || '100kb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(requestContextMiddleware);

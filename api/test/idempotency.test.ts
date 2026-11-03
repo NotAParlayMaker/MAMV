@@ -28,9 +28,16 @@ describe('Idempotency Store', () => {
       errors: [],
     };
 
-    setIdempotencyRecord('key-1', response);
-    const record = getIdempotencyRecord('key-1');
+    setIdempotencyRecord('org:a', 'key-1', response);
+    const record = getIdempotencyRecord('org:a', 'key-1');
 
     expect(record?.response).to.deep.equal(response);
+  });
+
+  it('Does not return another owner\'s record for the same key', () => {
+    const response = { task_id: 'secret' } as unknown as VerifyResponse;
+    setIdempotencyRecord('org:a', 'shared-key', response);
+
+    expect(getIdempotencyRecord('org:b', 'shared-key')).to.equal(undefined);
   });
 });

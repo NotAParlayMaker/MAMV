@@ -13,6 +13,7 @@ import { hashUtf8 } from '../../../shared/canonicalJson';
 import { getMockJob, getMockReceipt } from '../services/mockVerifier';
 import { createDebugTrace, endStage, startStage } from '../../../shared/observability/debugTrace';
 import { storeDebugTrace } from '../services/debugTraceStore';
+import { CAPABILITIES, ownerIdFor, requireCapability } from '../middleware/security';
 import { TraceContext } from '../../../shared/observability/tracing';
 import { validateAllusionOptions } from '../../../shared/allusions';
 
@@ -24,6 +25,7 @@ const router = Router();
  */
 router.post(
   '/',
+  requireCapability(CAPABILITIES.createVerification),
   [
     body('prompt').isString().notEmpty().withMessage('Prompt is required'),
     body('models').isArray({ min: 1 }).withMessage('At least one model required'),
@@ -229,7 +231,7 @@ router.post(
         duration_ms: Date.now() - queueStart,
       });
 
-      await storeDebugTrace(taskId, ingestTrace);
+      await storeDebugTrace(taskId, ingestTrace, ownerIdFor(req));
 
       logger.info('Verification task submitted', { taskId });
       logger.info('Timing: api verify total', {

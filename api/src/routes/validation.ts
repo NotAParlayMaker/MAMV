@@ -14,6 +14,7 @@ import {
   MmvValidationRequest,
   ValidationReceipt,
 } from '../../../shared/validationTypes';
+import { CAPABILITIES, requesterIdFor, requireCapability } from '../middleware/security';
 
 const router = Router();
 
@@ -24,7 +25,7 @@ const requestValidators = [
   body('payload').isObject().withMessage('payload is required'),
 ];
 
-router.post('/requests', requestValidators, (req: Request, res: Response) => {
+router.post('/requests', requireCapability(CAPABILITIES.createVerification), requestValidators, (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -36,7 +37,7 @@ router.post('/requests', requestValidators, (req: Request, res: Response) => {
     tags?: string[];
   };
 
-  const requesterId = req.header('x-requester-id') || req.ip || 'anonymous';
+  const requesterId = requesterIdFor(req);
   const request = createValidationRequest(plugin, payload, requesterId, tags);
 
   res.status(201).json({
@@ -88,6 +89,7 @@ router.get(
 
 router.post(
   '/requests/:requestId/results',
+  requireCapability(CAPABILITIES.writeReceipts),
   [
     param('requestId').isString().notEmpty().withMessage('requestId is required'),
     body('receipt').isObject().withMessage('receipt is required'),

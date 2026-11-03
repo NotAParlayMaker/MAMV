@@ -15,6 +15,7 @@ import { WORTHY_MIN_BPS } from '../../../shared/verifiedOutput';
 import { computeReceiptHash } from '../../../shared/receipt';
 import { getMockReceipt } from '../services/mockVerifier';
 import { isMockVerifierEnabled } from '../utils/mockMode';
+import { CAPABILITIES, requesterIdFor, requireCapability } from '../middleware/security';
 
 const router = Router();
 
@@ -26,13 +27,13 @@ const mamvValidators = [
   body('evidence').optional().isObject().withMessage('Evidence must be an object'),
 ];
 
-router.post('/verify', mamvValidators, async (req: Request, res: Response) => {
+router.post('/verify', requireCapability(CAPABILITIES.createVerification), mamvValidators, async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const requesterId = req.header('x-requester-id') || req.ip || 'anonymous';
+  const requesterId = requesterIdFor(req);
   const { taskId, input, candidates, evidence } = req.body as {
     taskId: string;
     input: string;
@@ -71,13 +72,13 @@ router.post('/verify', mamvValidators, async (req: Request, res: Response) => {
   }
 });
 
-router.post('/guard', mamvValidators, async (req: Request, res: Response) => {
+router.post('/guard', requireCapability(CAPABILITIES.createVerification), mamvValidators, async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const requesterId = req.header('x-requester-id') || req.ip || 'anonymous';
+  const requesterId = requesterIdFor(req);
   const { taskId, input, candidates, evidence } = req.body as {
     taskId: string;
     input: string;

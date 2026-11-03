@@ -123,6 +123,8 @@ if [[ "$MODE" == "mock" ]]; then
   set_env MOCK_PROVIDERS true
   set_env MOCK_CHAIN true
   set_env MOCK_SCENARIO happy
+  # Anonymous access is honoured only while both the verifier and chain are mocked.
+  set_env ALLOW_ANONYMOUS_ACCESS true
   set_env PROVIDER_MODE mock
   set_env CHAIN_MODE mock
   set_env HASHED_ONLY_DEFAULT true
@@ -130,6 +132,7 @@ else
   set_env MOCK_VERIFIER false
   set_env MOCK_PROVIDERS false
   set_env MOCK_CHAIN false
+  set_env ALLOW_ANONYMOUS_ACCESS false
   set_env PROVIDER_MODE real
   set_env CHAIN_MODE real
   set_env HASHED_ONLY_DEFAULT true
