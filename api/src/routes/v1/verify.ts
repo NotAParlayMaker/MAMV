@@ -14,6 +14,7 @@ import { CONSTANTS } from '../../../../shared/types';
 import { getIdempotencyRecord, setIdempotencyRecord } from '../../services/idempotency';
 import { createDebugTrace, endStage, startStage } from '../../../../shared/observability/debugTrace';
 import { storeDebugTrace } from '../../services/debugTraceStore';
+import { CAPABILITIES, ownerIdFor, requireCapability } from '../../middleware/security';
 import { TraceContext } from '../../../../shared/observability/tracing';
 import { validateAllusionOptions } from '../../../../shared/allusions';
 
@@ -94,7 +95,7 @@ function buildTimings(overrides?: Partial<TimingInfo>): TimingInfo {
  * POST /v1/verify
  * Submit a new verification request
  */
-router.post('/', requestValidators, async (req: Request, res: Response) => {
+router.post('/', requireCapability(CAPABILITIES.createVerification), requestValidators, async (req: Request, res: Response) => {
   const requestStart = Date.now();
   const traceContext = (req as Request & { traceContext?: TraceContext }).traceContext;
   try {
@@ -117,7 +118,7 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     const idempotencyKey = req.header('Idempotency-Key') || requestPayload.idempotency_key;
 
     if (idempotencyKey) {
-      const existing = getIdempotencyRecord(idempotencyKey);
+      const existing = getIdempotencyRecord(ownerIdFor(req), idempotencyKey);
       if (existing) {
         return res.status(200).json(existing.response);
       }
@@ -259,7 +260,7 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     const queueMs = Date.now() - queueStart;
 
     endStage(ingestTrace, 'enqueue', 'ok', { duration_ms: queueMs });
-    await storeDebugTrace(taskId, ingestTrace);
+    await storeDebugTrace(taskId, ingestTrace, ownerIdFor(req));
 
     const response: VerifyResponse = {
       task_id: taskId,
@@ -288,7 +289,7 @@ router.post('/', requestValidators, async (req: Request, res: Response) => {
     };
 
     if (idempotencyKey) {
-      setIdempotencyRecord(idempotencyKey, response);
+      setIdempotencyRecord(ownerIdFor(req), idempotencyKey, response);
     }
 
     res.status(201).json(response);

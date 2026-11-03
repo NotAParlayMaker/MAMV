@@ -10,7 +10,8 @@ import {
   getMockReceipt,
   listMockJobs,
 } from '../services/mockVerifier';
-import { getDebugTrace } from '../services/debugTraceStore';
+import { getDebugTrace, getDebugTraceOwner } from '../services/debugTraceStore';
+import { CAPABILITIES, isProduction, ownerIdFor, requireCapability } from '../middleware/security';
 
 const router = Router();
 
@@ -166,10 +167,20 @@ router.get('/:jobId/receipt', async (req: Request, res: Response) => {
 /**
  * GET /api/jobs/:jobId/trace
  */
-router.get('/:jobId/trace', async (req: Request, res: Response) => {
+/**
+ * Debug traces are off in production unless DEBUG_TRACES_ENABLED=true, require
+ * the receipts:read scope, and are only returned to the owner that created
+ * them. Unknown, foreign, and unowned traces all return the same 404.
+ */
+function debugTracesEnabled(): boolean {
+  return !isProduction() || process.env.DEBUG_TRACES_ENABLED === 'true';
+}
+
+router.get('/:jobId/trace', requireCapability(CAPABILITIES.readReceipts), async (req: Request, res: Response) => {
   try {
     const { jobId } = req.params;
-    const trace = await getDebugTrace(jobId);
+    const owner = debugTracesEnabled() ? await getDebugTraceOwner(jobId) : null;
+    const trace = owner && owner === ownerIdFor(req) ? await getDebugTrace(jobId) : null;
     if (!trace) {
       return res.status(404).json({
         error: 'Not Found',

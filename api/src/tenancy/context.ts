@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { hashApiKey, apiKeyIsUsable } from './apiKeys';
 import { OrganizationContext, OrganizationRole } from './authorization';
+import { requireJwtSecret } from '../middleware/security';
 const prisma = new PrismaClient();
 export type TenantRequest = Request & { organizationContext?: OrganizationContext };
 
@@ -13,10 +14,10 @@ export async function resolveOrganizationContext(req: Request): Promise<Organiza
     const key = await prisma.organizationApiKey.findUnique({ where: { keyHash: hashApiKey(bearer) } });
     if (!key || !apiKeyIsUsable(key)) return null;
     await prisma.organizationApiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } });
-    return { organizationId: key.organizationId, authType: 'api-key', scopes: key.scopes };
+    return { organizationId: key.organizationId, apiKeyId: key.id, authType: 'api-key', scopes: key.scopes };
   }
   try {
-    const claims = jwt.verify(bearer, process.env.JWT_SECRET || '') as { sub: string; organizationId?: string };
+    const claims = jwt.verify(bearer, requireJwtSecret(), { algorithms: ['HS256'] }) as { sub: string; organizationId?: string };
     if (!claims.organizationId) return null;
     const membership = await prisma.organizationMembership.findUnique({ where: { organizationId_userId: { organizationId: claims.organizationId, userId: claims.sub } } });
     return membership ? { organizationId: membership.organizationId, userId: membership.userId, role: membership.role.toLowerCase() as OrganizationRole, authType: 'session' } : null;

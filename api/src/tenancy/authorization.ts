@@ -1,6 +1,6 @@
 export const ORGANIZATION_ROLES = ['owner', 'admin', 'member', 'viewer'] as const;
 export type OrganizationRole = (typeof ORGANIZATION_ROLES)[number];
-export type OrganizationContext = { organizationId: string; userId?: string; role?: OrganizationRole; authType: 'session' | 'api-key' | 'wallet' | 'internal'; scopes?: string[] };
+export type OrganizationContext = { organizationId: string; userId?: string; apiKeyId?: string; role?: OrganizationRole; authType: 'session' | 'api-key' | 'wallet' | 'internal'; scopes?: string[] };
 
 export const permissions = {
   manageOrganization: ['owner'], manageMembers: ['owner', 'admin'], manageSettings: ['owner', 'admin'],

@@ -75,6 +75,7 @@ async function runE2E() {
     MOCK_CHAIN: 'true',
     MOCK_SCENARIO: 'happy',
     MOCK_VERIFIER_DELAY_MS: '100',
+    ALLOW_ANONYMOUS_ACCESS: 'true',
     NODE_ENV: 'test',
     LOG_LEVEL: 'warn',
   };
@@ -95,7 +96,10 @@ async function runE2E() {
 
     const submitRes = await fetch(`${API_URL}/api/verify`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.MAMV_API_KEY ? { Authorization: `Bearer ${process.env.MAMV_API_KEY}` } : {}),
+      },
       body: JSON.stringify({
         prompt: 'Hello receipt',
         models: ['mock-llm'],

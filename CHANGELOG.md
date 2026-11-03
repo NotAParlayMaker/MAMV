@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Security
+
+- **Breaking:** verification and write routes (`/api/verify`, `/v1/verify`, `/api/mamv/verify`, `/api/mamv/guard`, `/api/validation` writes) now require an organization API key with the matching scope or a session with the matching role. Set `ALLOW_ANONYMOUS_ACCESS=true` for local development; the quickstart mock sandbox does this automatically.
+- `GET /api/jobs/:id/trace` requires `receipts:read`, returns only the caller's own traces, and is disabled in production unless `DEBUG_TRACES_ENABLED=true`.
+- The requester identity comes from credentials; `x-requester-id` is ignored. `Idempotency-Key` values are scoped per organization.
+- Production startup fails without a 32+ character `JWT_SECRET` or an explicit `CORS_ORIGIN` allowlist. JWTs are verified as HS256 only, and a wildcard CORS origin never carries credentials.
+
 ### Added
 
 - Open-source contribution, issue, pull-request, branch-protection, and release-process documentation.

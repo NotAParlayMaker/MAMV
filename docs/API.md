@@ -1,5 +1,30 @@
 # MAMV API
 
+## Authentication
+
+Routes that spend provider credits, sign, or write state require
+`Authorization: Bearer mamv_...` (an organization API key) or an organization
+session JWT (HS256 only):
+
+| Route | API key scope | Session permission |
+| --- | --- | --- |
+| `POST /api/verify`, `POST /v1/verify` | `verifications:create` | `createVerification` |
+| `POST /api/mamv/verify`, `POST /api/mamv/guard` | `verifications:create` | `createVerification` |
+| `POST /api/validation/requests` | `verifications:create` | `createVerification` |
+| `POST /api/validation/requests/:id/results` | `receipts:write` | `writeReceipts` |
+| `GET /api/jobs/:id/trace` | `receipts:read` | `readResources` |
+
+Missing credentials return 401; a missing scope or permission returns 403.
+The requester identity used for decision gates and validation records is
+derived from those credentials; `x-requester-id` is ignored. `Idempotency-Key`
+values are scoped to the calling organization. Debug traces are returned only
+to the organization that created them and are disabled in production unless
+`DEBUG_TRACES_ENABLED=true`.
+
+For local development, `ALLOW_ANONYMOUS_ACCESS=true` lets unauthenticated
+callers through. It is ignored under `NODE_ENV=production` unless both
+`MOCK_VERIFIER` and `MOCK_CHAIN` are `true` (the quickstart mock sandbox).
+
 ## Create a verification receipt
 
 `POST /api/mamv/verify`

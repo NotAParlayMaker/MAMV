@@ -14,4 +14,4 @@ Run `cd api && npm run prisma:migrate:deploy && npm run prisma:seed`. The migrat
 
 ## Follow-up scope
 
-Legacy blockchain-derived and compatibility routes still need to be moved behind the tenant context before they can serve customer data in production. New tenant routes are the supported SaaS surface; deployers should disable unauthenticated legacy routes while completing that cutover.
+Verification and write routes (`/api/verify`, `/v1/verify`, `/api/mamv/verify`, `/api/mamv/guard`, `/api/validation` writes) and debug traces now require tenant credentials and a matching API key scope or role; see `docs/API.md`. Remaining read-only legacy blockchain-derived and compatibility routes still need to be moved behind the tenant context before they can serve customer data in production. New tenant routes are the supported SaaS surface; deployers should disable unauthenticated legacy routes while completing that cutover.
