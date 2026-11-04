@@ -15,6 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Optional `epistemic_disclosures` receipt field: informativeness counts, inference and omission findings, Unable-to-verify reasons (`verifier_limited`, `evidence_absent`, `field_contested`, `out_of_scope_domain`), rebutting/undercutting defeaters, and precisifications of vague terms. Disclosures are hash-bound but never change the verdict; receipts without them hash as before. See `docs/EPISTEMIC_DISCLOSURES.md`.
 - Open-source contribution, issue, pull-request, branch-protection, and release-process documentation.
 
 ### Fixed
