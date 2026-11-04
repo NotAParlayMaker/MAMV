@@ -48,3 +48,11 @@ The optional experimental distillation-watermark assessment maps only to the pro
 ## Claim domains and independence disclosure
 
 Programs declare `claim_domain`. Normative, predictive, and aesthetic claims are outside empirical evidentiary verdict scoring and must return **Unable to verify** with that reason. Provider/model lineage and retrieval-context fingerprints are checked conservatively: shared family, provider organization, or retrieval context is correlated; missing lineage is recorded as `independence_basis: "unknown"` and is not silently counted as independent support.
+
+## Epistemic disclosures
+
+Receipts may carry `epistemic_disclosures`: informativeness counts, whether the
+conclusion follows from its claims, material omissions, the reason behind an
+**Unable to verify** verdict, defeaters, and the reading used for vague terms.
+They are reported beside the verdict and never change it (`affects_verdict` is
+always `false`). See [Epistemic disclosures](EPISTEMIC_DISCLOSURES.md).

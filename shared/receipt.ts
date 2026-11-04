@@ -12,6 +12,7 @@ import type { Verdict } from './verdicts';
 import type { MetacognitiveAssessment } from './metacognitive';
 import type { CoherenceAssessment } from './coherence';
 import type { DistillationWatermarkAssessment } from './distillationWatermark';
+import { normalizeEpistemicDisclosuresForHash, validateEpistemicDisclosures, type EpistemicDisclosures } from './epistemicDisclosures';
 
 import { hashCanonical, canonicalize } from "./canonicalJson";
 import {
@@ -182,6 +183,8 @@ export interface VerificationReceipt {
   metacognitive_assessment?: MetacognitiveAssessment;
   /** Optional observable coherence/stability summary; never model internals. */
   coherence_assessment?: CoherenceAssessment;
+  /** Optional disclosures reported beside the verdict; they never change it. See docs/EPISTEMIC_DISCLOSURES.md. */
+  epistemic_disclosures?: EpistemicDisclosures;
   /** Optional, bounded allusion analysis. Classifier summaries and consensus are not evidence. */
   allusion_assessment?: import('./allusions').AllusionAssessment;
 
@@ -473,6 +476,7 @@ const RECEIPT_HASH_FIELDS = [
   "unresolved_world_ids",
   "metacognitive_assessment",
   "coherence_assessment",
+  "epistemic_disclosures",
   "limitations",
   "genericity_assessment",
   "distillation_watermark_assessment",
@@ -528,6 +532,7 @@ function normalizeHashValue(field: string, value: unknown): unknown {
   if (field === 'world_assessments' || field === 'stabilized_claims' || field === 'claim_rivalry_history' || field === 'claims') return sortById(value as unknown[], field === 'claim_rivalry_history' ? 'claim_id' : 'id');
   if (field === 'evidence_relations') return sortById(value as unknown[], 'id');
   if (field === 'distillation_watermark_assessment') { const assessment = value as DistillationWatermarkAssessment; return { ...assessment, subject: { ...assessment.subject, sampleHashes: [...assessment.subject.sampleHashes].sort() }, independenceAssessment: { ...assessment.independenceAssessment, sessionIds: [...assessment.independenceAssessment.sessionIds].sort(), overlapWarnings: [...assessment.independenceAssessment.overlapWarnings].sort() }, alternativeExplanations: [...assessment.alternativeExplanations].sort(), warnings: [...assessment.warnings].sort(), limitations: [...assessment.limitations].sort(), humanReviewReasonCodes: [...assessment.humanReviewReasonCodes].sort() }; }
+  if (field === 'epistemic_disclosures') return normalizeEpistemicDisclosuresForHash(value as EpistemicDisclosures);
   if (field === 'possibility_space') {
     const space = value as VerificationPossibilitySpace;
     return { ...space, worlds: space.worlds ? sortById(space.worlds) : undefined, interpretation_alternatives: space.interpretation_alternatives ? sortById(space.interpretation_alternatives) : undefined };
@@ -627,6 +632,7 @@ export interface BuildReceiptParams {
   metacognitive_assessment?: MetacognitiveAssessment;
   coherence_assessment?: CoherenceAssessment;
   distillation_watermark_assessment?: DistillationWatermarkAssessment;
+  epistemic_disclosures?: EpistemicDisclosures;
 }
 
 /**
@@ -699,6 +705,7 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   if (params.metacognitive_assessment) receipt.metacognitive_assessment = params.metacognitive_assessment;
   if (params.coherence_assessment) receipt.coherence_assessment = params.coherence_assessment;
   if (params.distillation_watermark_assessment) receipt.distillation_watermark_assessment = params.distillation_watermark_assessment;
+  if (params.epistemic_disclosures) receipt.epistemic_disclosures = params.epistemic_disclosures;
 
   // Add program reference if provided
   if (params.program) {
@@ -745,6 +752,10 @@ export function buildReceipt(params: BuildReceiptParams): VerificationReceipt {
   receipt.formal_mathematical_claims = params.formal_mathematical_claims;
   receipt.selected_world_ids = params.selected_world_ids;
   receipt.unresolved_world_ids = params.unresolved_world_ids;
+  if (receipt.epistemic_disclosures) {
+    const disclosureErrors = validateEpistemicDisclosures(receipt.epistemic_disclosures, { claimIds: receipt.claims?.map((claim) => claim.id), verificationStatus: receipt.verification_status });
+    if (disclosureErrors.length) throw new Error(`Cannot create receipt: ${disclosureErrors.join(", ")}`);
+  }
 
   // Add metering if provided
   if (params.metering) {
@@ -890,6 +901,11 @@ export function validateReceipt(receipt: unknown): ReceiptValidationResult {
   if (watermark !== undefined) {
     if (!watermark || typeof watermark !== "object") errors.push("distillation_watermark_assessment must be an object");
     else { const a = watermark as Record<string, unknown>; if (a.schemaVersion !== "distillation-watermark-assessment/v1") errors.push("distillation_watermark_assessment.schemaVersion is unsupported"); if (a.detected !== (a.status === "signal_detected")) errors.push("distillation_watermark_assessment.detected must be derived from status"); if (!Array.isArray(a.limitations) || !a.limitations.length) errors.push("distillation_watermark_assessment.limitations must not be empty"); if (Object.prototype.hasOwnProperty.call(a, "watermarkDetected")) errors.push("distillation_watermark_assessment must not contain watermarkDetected"); }
+  }
+
+  if (r.epistemic_disclosures !== undefined) {
+    const claimIds = Array.isArray(r.claims) ? (r.claims as Array<{ id?: unknown }>).map((claim) => String(claim?.id)) : undefined;
+    errors.push(...validateEpistemicDisclosures(r.epistemic_disclosures, { claimIds, verificationStatus: r.verification_status as Verdict | undefined }));
   }
 
   if (!isLegacy) {
