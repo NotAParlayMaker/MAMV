@@ -19,6 +19,8 @@ UI and docs prefer `quorum_status`. Existing `bft_quorum` fields remain accepted
 
 Receipts use the documented evidence verdicts: **Supported**, **Mostly supported**, **Mixed evidence**, **Unsupported**, **Contradicted**, and **Unable to verify**. Each label has ordered thresholds, required measurements, and explanation rules; it does not assert that an output is true. See [Public verdict policy](VERDICTS.md).
 
+Optional `epistemic_disclosures` sit beside the label: informativeness, inference and omissions, why a receipt is Unable to verify, defeaters, and precisifications. They never change the label. See [Epistemic disclosures](EPISTEMIC_DISCLOSURES.md).
+
 ## Verification
 
 To verify a receipt, recompute the canonical receipt hash, compare it with `receipt_hash`/`receipt_id`, verify signer metadata if present, and compare optional onchain anchor metadata against an independently fetched transaction.
