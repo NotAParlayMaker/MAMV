@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Wallet } from 'ethers';
 import { createEvidenceBundle } from '../src/evidence/evidenceBundler';
+import { ScoringResult } from '../src/scoring/scorer';
 import { EvidenceBundle } from '../../shared/types';
 
 const fixturePath = path.join(__dirname, 'fixtures', 'evidence-bundle-v0.1.json');
@@ -27,15 +28,41 @@ describe('Evidence bundler v0.2', () => {
       },
     ];
 
-    const scoringResult = {
+    const scoringResult: ScoringResult = {
       score: 95,
-      verdict: 'reliable' as const,
+      verdict: 'reliable',
       confidence: 0.96,
+      bft_quorum: true,
+      outliers: [],
+      vote_merkle_root: `0x${'aa'.repeat(32)}`,
       breakdown: {
         consistency: 92,
         agreement: 94,
         citationQuality: 100,
         factualAccuracy: 94,
+        similarityBonus: 0,
+      },
+      claim_graph: {
+        agreement_ratio: 1,
+        contradiction_count: 0,
+        citation_coverage: 1,
+        total_claims: 1,
+        score_components: {
+          coverage_bps: 10000,
+          contradiction_penalty_bps: 0,
+          citation_quality_bps: 10000,
+          final_score_bps: 9500,
+        },
+        claim_summary: [
+          {
+            cluster_id: 'c1',
+            canonical_text: 'Paris is the capital of France.',
+            supported_by: ['openai:gpt-4'],
+            contradicted_by: [],
+            citations: [],
+          },
+        ],
+        highlights: [],
       },
       reasoning: 'Verified across 1 model.',
     };
@@ -60,7 +87,7 @@ describe('Evidence bundler v0.2', () => {
     expect(bundle.metrics).toBeDefined();
     expect(bundle.signatures.bundle_sig_eip712).toMatch(/^0x/);
 
-    if (bundle.bundle_version === '0.2') {
+    if (bundle.bundle_version === '0.2' && 'scoring_trace' in bundle) {
       expect(bundle.input.content_hash).toMatch(/^0x/);
       expect(bundle.output.content_hash).toMatch(/^0x/);
       expect(bundle.provenance.model_runs.length).toBeGreaterThan(0);
