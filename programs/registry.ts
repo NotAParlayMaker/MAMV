@@ -25,7 +25,9 @@ export type ProgramRegistryConfig = {
 
 const DEFAULT_PROGRAMS_DIR = path.resolve(process.cwd(), 'programs');
 
-const ajv = new Ajv({ allErrors: true, strict: true, allowUnionTypes: true });
+// Match shared/schemaValidation: the bundle schemas use conditional `required`
+// clauses that strictRequired rejects.
+const ajv = new Ajv({ allErrors: true, strict: true, allowUnionTypes: true, strictRequired: false });
 
 export function computeProgramHash(programDir: string, manifest: ProgramManifest): string {
   const manifestPayload = canonicalize({
@@ -277,7 +279,8 @@ export class ProgramRegistry {
     const record = this.resolveProgram(programId, programVersion);
     const inputValidation = validateEvidenceBundleV1(bundle);
     if (!inputValidation.valid) {
-      throw new Error(`Evidence bundle failed schema validation: ${inputValidation.errors[0]?.message}`);
+      const [first] = inputValidation.errors;
+      throw new Error(`Evidence bundle failed schema validation: ${first?.path ?? '/'} ${first?.message ?? ''}`.trim());
     }
 
     const requirementErrors = validateEvidenceRequirements(bundle, record.program.evidence_requirements);

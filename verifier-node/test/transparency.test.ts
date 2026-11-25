@@ -301,7 +301,7 @@ describe('ZK Proof Interface', () => {
           zk_proof: 'not-hex',
           zk_public_inputs: {},
         },
-      };
+      } as unknown as Parameters<typeof hasZKProof>[0]; // deliberately malformed
       expect(hasZKProof(receipt)).toBe(false);
     });
   });

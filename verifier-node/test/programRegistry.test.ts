@@ -3,30 +3,36 @@ import os from 'os';
 import path from 'path';
 import { ProgramRegistry, computeProgramHash } from '../../programs/registry';
 import { ProgramContext } from '../../programs/interface';
-import { EvidenceBundle } from '../../shared/types';
+import { EvidenceBundleV02 } from '../../shared/types';
+
+const hex = (byte: string, count: number): `0x${string}` => `0x${byte.repeat(count)}`;
 
 const fixturesDir = path.join(__dirname, 'fixtures', 'programs');
 
-function buildBundle(): EvidenceBundle {
+// The fixture program validates against evidence_bundle.v1, which pins
+// version '1.0.0' while allowing v0.2 fields; EvidenceBundleV02 pins '1.1.0'.
+// Keep the schema-valid value and cast across that known type/schema gap.
+function buildBundle(): EvidenceBundleV02 {
   return {
-    version: '1.0.0',
+    schema_version: '1',
+    version: '1.0.0' as unknown as EvidenceBundleV02['version'],
     task_id: 'task-1',
     bundle_version: '0.2',
     created_at: '2024-01-01T00:00:00Z',
     evaluator: {
       node_id: 'node-test',
-      eth_address: '0x' + '11'.repeat(20),
+      eth_address: hex('11', 20),
       software: { name: 'verifier-node', ver: '0.1.0', commit: 'abc123' },
     },
-    prompt_hash: '0x' + '22'.repeat(32),
-    rubric_hash: '0x' + '33'.repeat(32),
+    prompt_hash: hex('22', 32),
+    rubric_hash: hex('33', 32),
     model_runs: [
       {
         provider: 'openai',
         model: 'gpt-4',
         temperature: 0.1,
         raw_output: 'hello',
-        output_hash: '0x' + '44'.repeat(32),
+        output_hash: hex('44', 32),
       },
     ],
     claims: [],
@@ -39,23 +45,23 @@ function buildBundle(): EvidenceBundle {
     },
     final_score_bps: 9000,
     explanation: 'ok',
-    signatures: { bundle_sig_eip712: '0x' + '11'.repeat(65) },
-    input: { content_type: 'text', content_hash: '0x' + '55'.repeat(32) },
-    output: { content_type: 'text', content_hash: '0x' + '66'.repeat(32) },
+    signatures: { bundle_sig_eip712: hex('11', 65) },
+    input: { content_type: 'text', content_hash: hex('55', 32) },
+    output: { content_type: 'text', content_hash: hex('66', 32) },
     provenance: {
       model_runs: [
         {
           provider: 'openai',
           model: 'gpt-4',
-          prompt_hash: '0x' + '22'.repeat(32),
-          response_hash: '0x' + '44'.repeat(32),
+          prompt_hash: hex('22', 32),
+          response_hash: hex('44', 32),
           started_at: 1,
           finished_at: 2,
         },
       ],
     },
     scoring_trace: {
-      rubric_hash: '0x' + '33'.repeat(32),
+      rubric_hash: hex('33', 32),
       score_bps: 9000,
       verdict: 'reliable',
       breakdown: {},
@@ -67,13 +73,13 @@ function buildBundle(): EvidenceBundle {
 function buildContext(programHash: string): ProgramContext {
   return {
     task_id: 'task-1',
-    input_hash: '0x' + '22'.repeat(32),
-    output_hash: '0x' + '44'.repeat(32),
-    bundle_hash: '0x' + '77'.repeat(32),
+    input_hash: hex('22', 32),
+    output_hash: hex('44', 32),
+    bundle_hash: hex('77', 32),
     bundle_uri: 'ipfs://bundle',
     bundle_version: '0.2',
     chain_id: 421614,
-    contract_address: '0x' + '88'.repeat(20),
+    contract_address: hex('88', 20),
     llm_provider: 'openai',
     llm_model: 'gpt-4',
     program_hash: programHash,
@@ -89,7 +95,7 @@ describe('ProgramRegistry', () => {
   });
 
   it('rejects invalid semver versions', () => {
-    const invalidDir = path.join(fixturesDir, 'invalid-version');
+    const invalidDir = path.join(__dirname, 'fixtures', 'invalid-programs');
     const registry = new ProgramRegistry({ programsDir: invalidDir });
     expect(() => registry.loadPrograms()).toThrow(/Invalid semver/);
   });
