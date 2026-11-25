@@ -1,7 +1,6 @@
 import {
   VerifiedOutputRecord,
   RevealedEventData,
-  FinalizedEventData,
   OnChainTaskData,
   RecordQueryFilter,
   buildRecordFromChainData,
@@ -57,12 +56,15 @@ const createSampleReceipt = (): MAMVReceipt => ({
     config_hash: '0x' + '55'.repeat(32),
   },
   provenance: {
-    request_timestamp: 1705319000,
-    response_timestamp: 1705320000,
-    model_latency_ms: 1500,
-    prompt_tokens: 100,
-    completion_tokens: 200,
-    raw_response_hash: '0x' + '66'.repeat(32),
+    provider: 'openai',
+    model: 'gpt-4',
+    prompt_hash: `0x${'33'.repeat(32)}`,
+    response_hash: `0x${'66'.repeat(32)}`,
+    started_at: 1705319000,
+    finished_at: 1705320000,
+    latency_ms: 1500,
+    tokens_in: 100,
+    tokens_out: 200,
   },
 });
 

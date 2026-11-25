@@ -106,7 +106,7 @@ describe('Program Fingerprinting', () => {
 
     it('should be order-independent for object fields', () => {
       // Same program, different field order
-      const program1 = {
+      const program1: ProgramDefinitionWithLimits = {
         name: 'test',
         version: '1.0.0',
         steps: [{ type: 'prompt' as const }],
@@ -118,7 +118,7 @@ describe('Program Fingerprinting', () => {
         receipt: { schema_version: '1', receipt_version: '1.0.0', explain_version: '1.0.0' },
       };
 
-      const program2 = {
+      const program2: ProgramDefinitionWithLimits = {
         steps: [{ type: 'prompt' as const }],
         version: '1.0.0',
         name: 'test',

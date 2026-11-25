@@ -1,9 +1,9 @@
 const path = require('path');
 
-const receiptSchema = require(path.join(__dirname, '../../../../shared/schemas/receipt.v1.schema.json'));
+const receiptSchema = require(path.join(__dirname, '../../../../../shared/schemas/receipt.v1.schema.json'));
 const evidenceSchema = require(path.join(
   __dirname,
-  '../../../../shared/schemas/evidence_bundle.v1.schema.json'
+  '../../../../../shared/schemas/evidence_bundle.v1.schema.json'
 ));
 
 const program = {
