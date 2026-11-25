@@ -23,13 +23,14 @@ const jobQueue = new Queue('verification-jobs', REDIS_URL);
 const redisClient = createClient({ url: REDIS_URL });
 
 async function updateJobStatus(
+  organizationId: string,
   jobId: string,
   status: MockJobStatus,
   extras?: Partial<MockJobRecord>
 ): Promise<void> {
-  const raw = await redisClient.get(MOCK_REDIS_KEYS.job(jobId));
+  const raw = await redisClient.get(MOCK_REDIS_KEYS.job(organizationId, jobId));
   if (!raw) {
-    logger.warn('Mock job missing from store', { jobId });
+    logger.warn('Mock job missing from store', { jobId, organizationId });
     return;
   }
 
@@ -44,7 +45,7 @@ async function updateJobStatus(
     ...extras,
   };
 
-  await redisClient.set(MOCK_REDIS_KEYS.job(jobId), JSON.stringify(updated));
+  await redisClient.set(MOCK_REDIS_KEYS.job(organizationId, jobId), JSON.stringify(updated));
 }
 
 async function storeMockArtifacts(params: {
@@ -69,21 +70,24 @@ export async function startMockJobProcessor(): Promise<void> {
   logger.info('Mock job processor connected to Redis');
 
   jobQueue.process('verify', async (job) => {
-    const { jobId, prompt, promptHash, models, taskType, storeEvidence } = job.data as {
+    const { jobId, organizationId: jobOrganizationId, prompt, promptHash, models, taskType, storeEvidence } = job.data as {
       jobId: string;
+      organizationId?: string;
       prompt: string;
       promptHash: string;
       models: string[];
       taskType: string;
       storeEvidence?: boolean;
     };
+    // Match the API's key convention for jobs created without a tenant.
+    const organizationId = jobOrganizationId || 'legacy';
 
     const scenario = resolveMockScenario(process.env.MOCK_SCENARIO);
     const delayMs = Number.parseInt(process.env.MOCK_VERIFIER_DELAY_MS || '150', 10);
 
     logger.info('Mock verifier processing job', { jobId, scenario, taskType, models });
 
-    await updateJobStatus(jobId, 'running');
+    await updateJobStatus(organizationId, jobId, 'running');
 
     if (delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -110,7 +114,7 @@ export async function startMockJobProcessor(): Promise<void> {
         jobId,
         errors: bundleValidation.errors,
       });
-      await updateJobStatus(jobId, 'failed');
+      await updateJobStatus(organizationId, jobId, 'failed');
       return { success: false };
     }
 
@@ -137,7 +141,7 @@ export async function startMockJobProcessor(): Promise<void> {
         jobId,
         errors: receiptValidation.errors,
       });
-      await updateJobStatus(jobId, 'failed');
+      await updateJobStatus(organizationId, jobId, 'failed');
       return { success: false };
     }
 
@@ -171,7 +175,7 @@ export async function startMockJobProcessor(): Promise<void> {
     });
 
     const finalStatus: MockJobStatus = scenario === 'fail' ? 'failed' : 'completed';
-    await updateJobStatus(jobId, finalStatus, {
+    await updateJobStatus(organizationId, jobId, finalStatus, {
       scoreBps,
       verdict: receipt.verdict,
       disputed: disputes.length > 0,
