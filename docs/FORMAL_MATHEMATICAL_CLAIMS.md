@@ -60,3 +60,26 @@ assumption itself has not been verified.
 ```
 
 The barriers in this example do not support `P ≠ NP`, and the linked expert-belief claim does not change the formal claim’s verdict.
+
+## Check a theorem application or finite example
+
+Run `mamv verify-math-paper CHECKS.json` with the installed CLI. It accepts
+structured checks transcribed from a paper or an argument. For Theorem 1.2 of
+the shifted-prime progressions paper, enter polynomials as decimal integer
+strings, ordered from the constant coefficient to the highest degree.
+
+```json
+[
+  {"kind":"theorem_1_2","polynomials":[["0","1"],["0","0","1"]]},
+  {"kind":"nondegenerate_example","polynomials":[["0","1"],["0","0","1"]],"p":2}
+]
+```
+
+The first check tests the polynomial hypotheses. The second tests primality
+and computes the offsets at `p - 1` with exact integer arithmetic. It reports
+a contradiction for the stated example because the offsets are 0, 1, and 1.
+The OVP JSON report includes claim-scoped evidence, calculations, and
+checker provenance. The scope is the submitted checks. Reading a PDF,
+identifying the intended theorem, checking asymptotic hypotheses, and
+validating the full proof require separate review.
+[Source, Theorem 1.2](https://arxiv.org/pdf/2608.19525v1#page=2)

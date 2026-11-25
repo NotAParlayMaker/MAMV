@@ -1,6 +1,7 @@
 import { Checker } from '../checkers/base';
 import { ConsistencyChecker } from '../checkers/consistency';
 import { LogicalChecker } from '../checkers/logical';
+import { extractShiftedPrimeClaims, ShiftedPrimeChecker } from '../checkers/shiftedPrime';
 import { UnsupportedClaimChecker } from '../checkers/unsupportedClaim';
 import { extractClaims } from '../extractors/claims';
 import { identifier, sha256, utcNow } from './hashing';
@@ -10,8 +11,13 @@ import { Claim, Finding, VerificationContext, VerificationRun, OVP_VERSION } fro
 export interface VerifyInput { text: string; inputType?: string; profile?: string; sources?: VerificationContext['sources']; networkEnabled?: boolean; llmEnabled?: boolean; }
 export class VerificationPipeline {
   constructor(private readonly registry: CheckerRegistry = defaultRegistry(), private readonly verifierVersion = '0.1.0') {}
+  async verifyMathPaper(text: string): Promise<VerificationRun> {
+    return this.run({ text, inputType: 'math-paper-checks', profile: 'shifted-prime' }, extractShiftedPrimeClaims(text));
+  }
   async verify(input: VerifyInput): Promise<VerificationRun> {
-    const claims = extractClaims(input.text);
+    return this.run(input, extractClaims(input.text));
+  }
+  private async run(input: VerifyInput, claims: Claim[]): Promise<VerificationRun> {
     this.identifyDependencies(claims);
     const context: VerificationContext = { input: input.text, input_hash: sha256(input.text), profile: input.profile ?? 'quick-chat', claims, sources: input.sources, network_enabled: input.networkEnabled ?? false, llm_enabled: input.llmEnabled ?? false, verifier_version: this.verifierVersion, timestamp: utcNow() };
     const findings: Finding[] = []; const failures: Array<{ checker: string; message: string }> = [];
@@ -33,4 +39,4 @@ function disagreements(findings: Finding[]): VerificationRun['disagreements'] {
   const grouped = new Map<string, Finding[]>(); for (const value of findings) grouped.set(value.claim_id, [...(grouped.get(value.claim_id) ?? []), value]);
   return [...grouped.entries()].flatMap(([claim_id, values]) => values.some((v) => v.status === 'contradicted') && values.some((v) => v.status === 'verified') ? [{ claim_id, finding_ids: values.map((v) => v.finding_id), reason: 'Checkers recorded contradictory observations.' }] : []);
 }
-export function defaultRegistry(): CheckerRegistry { const registry = new CheckerRegistry(); [new ConsistencyChecker(), new LogicalChecker(), new UnsupportedClaimChecker()].forEach((checker) => registry.register(checker)); return registry; }
+export function defaultRegistry(): CheckerRegistry { const registry = new CheckerRegistry(); [new ConsistencyChecker(), new LogicalChecker(), new UnsupportedClaimChecker(), new ShiftedPrimeChecker()].forEach((checker) => registry.register(checker)); return registry; }
