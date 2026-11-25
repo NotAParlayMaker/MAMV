@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { decryptEvidenceBundle, encryptEvidenceBundle } from '../../../shared/privacyMode';
+import { decryptEvidenceBundle, encryptEvidenceBundle, PrivacyEvidenceBundle } from '../../../shared/privacyMode';
 import { EvidenceBundle } from '../../../shared/types';
 
 function parseArgs(args: string[]): Record<string, string[]> {
@@ -65,7 +65,7 @@ export async function decryptBundleCli(args: string[]): Promise<void> {
 
   const outPath = parsed.out?.[0] ?? `${bundlePath}.decrypted.json`;
   const raw = await fs.readFile(bundlePath, 'utf8');
-  const encryptedBundle = JSON.parse(raw) as EvidenceBundle;
+  const encryptedBundle = JSON.parse(raw) as PrivacyEvidenceBundle;
   const payloadUri = encryptedBundle.encrypted_payload_uri;
 
   if (!payloadUri) {

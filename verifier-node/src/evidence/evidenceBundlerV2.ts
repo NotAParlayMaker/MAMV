@@ -3,6 +3,7 @@ import { ethers, Wallet } from 'ethers';
 import { logger } from '../utils/logger';
 import {
   EvidenceBundle,
+  EvidenceBundleV01,
   EvidenceBundleContent,
   EvidenceBundleVersion,
   EvidenceProvenance,
@@ -21,6 +22,7 @@ import {
   getEip712Domain,
   EIP712_TYPES,
   CONSTANTS,
+  UnsignedEvidenceBundle,
 } from '../../../shared/types';
 import { execSync } from 'child_process';
 import { hashCanonical, hashUtf8 } from '../../../shared/canonicalJson';
@@ -205,17 +207,16 @@ export function createEvidenceBundle(
   finalScoreBps: number,
   explanation: string,
   options: EvidenceBundleBuildOptions = {}
-): Omit<EvidenceBundle, 'signatures'> {
+): UnsignedEvidenceBundle {
   const bundleVersion = (options.bundleVersion ?? CONSTANTS.BUNDLE_VERSION_DEFAULT) as EvidenceBundleVersion;
   logger.info(`Creating evidence bundle v${bundleVersion}`, { taskId, ethAddress });
 
   const softwareInfo = getSoftwareInfo();
 
-  const bundle: Omit<EvidenceBundle, 'signatures'> = {
+  const bundle: Omit<EvidenceBundleV01, 'signatures' | 'bundle_version'> = {
     schema_version: '1',
     version: '1.1.0',
     task_id: taskId,
-    bundle_version: bundleVersion,
     created_at: new Date().toISOString(),
 
     evaluator: {
@@ -265,13 +266,14 @@ export function createEvidenceBundle(
         weights: options.scoringWeights,
       });
 
-    const bundleV02: EvidenceBundleV02 & {
+    const bundleV02: Omit<EvidenceBundleV02, 'signatures'> & {
       program?: BundleProgramRef;
       metering?: ExecutionMetering;
       reasoning_trace?: ReasoningTraceCommitment;
     } = {
-      ...(bundle as EvidenceBundleV02),
-      bundle_version: bundleVersion,
+      ...bundle,
+      version: '1.1.0',
+      bundle_version: '0.2',
       input: {
         content_type: options.inputContentType ?? 'text',
         content_hash: inputContentHash,
@@ -310,8 +312,8 @@ export function createEvidenceBundle(
         throw new Error('Replay metadata is required for bundle version 0.3');
       }
 
-      const bundleV03: EvidenceBundleV03 = {
-        ...(bundleV02 as EvidenceBundleV03),
+      const bundleV03: Omit<EvidenceBundleV03, 'signatures'> = {
+        ...bundleV02,
         bundle_version: '0.3',
         replay: options.replay,
         privacy_mode: options.privacy?.privacy_mode,
@@ -324,17 +326,17 @@ export function createEvidenceBundle(
       return bundleV03;
     }
 
-    return bundleV02 as EvidenceBundleV02;
+    return bundleV02;
   }
 
-  return bundle;
+  return { ...bundle, bundle_version: bundleVersion };
 }
 
 /**
  * Hash evidence bundle for tamper detection
  */
 export function hashEvidenceBundle(
-  bundle: Omit<EvidenceBundle, 'signatures'>
+  bundle: UnsignedEvidenceBundle
 ): string {
   return hashCanonical(bundle);
 }
@@ -343,7 +345,7 @@ export function hashEvidenceBundle(
  * Sign evidence bundle with EIP-712
  */
 export async function signEvidenceBundle(
-  bundle: Omit<EvidenceBundle, 'signatures'>,
+  bundle: UnsignedEvidenceBundle,
   wallet: Wallet,
   marketplaceAddress: string,
   chainId: number
@@ -374,7 +376,7 @@ export async function signEvidenceBundle(
   const signature = await wallet.signTypedData(domain, EIP712_TYPES, message);
 
   // 5. Add signature to bundle
-  const signedBundle: EvidenceBundle = {
+  const signedBundle = {
     ...bundle,
     signatures: {
       bundle_sig_eip712: signature,

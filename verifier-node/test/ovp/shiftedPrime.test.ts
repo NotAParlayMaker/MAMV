@@ -33,6 +33,9 @@ test('keeps large integers exact and rejects malformed inputs', async () => {
   await expect(verify([{ kind: 'nondegenerate_example', polynomials: family, p: 1e9 }])).rejects.toThrow('integer p');
 });
 
+test('records only the declared checker identity in each finding', async () => {
+  const run = await verify([{ kind: 'theorem_1_2', polynomials: family }]);
+  expect(JSON.parse(JSON.stringify(run.findings[0].checker))).toEqual({ name: 'shifted_prime', version: '1.0.0' });
 test('checks every point in a finite witness using exact arithmetic', async () => {
   const x = '9007199254740993';
   const set = [x, '9007199254740995', '9007199254740997'];

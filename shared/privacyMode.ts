@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, createECDH, createHash, randomBytes } from 'crypto';
 import { Wallet, verifyMessage } from 'ethers';
 import { canonicalizeBundle, computeBundleHash } from './evidenceReplay';
-import { EvidenceBundle, BundleKeyEnvelope, VerifiedPlaintextStatement } from './types';
+import { EvidenceBundle, EvidenceBundleV03, BundleKeyEnvelope, VerifiedPlaintextStatement } from './types';
 
 export type EncryptedPayload = {
   alg: 'aes-256-gcm';
@@ -81,11 +81,17 @@ function redactBundle(bundle: EvidenceBundle): EvidenceBundle {
   return redacted;
 }
 
+/** An evidence bundle of any version carrying privacy-mode fields. */
+export type PrivacyEvidenceBundle = EvidenceBundle &
+  Partial<Pick<EvidenceBundleV03,
+    'privacy_mode' | 'encrypted_payload_uri' | 'encrypted_payload_hash' |
+    'plaintext_commitment_hash' | 'key_envelopes'>>;
+
 export function encryptEvidenceBundle(params: {
   bundle: EvidenceBundle;
   recipients: string[];
 }): {
-  encryptedBundle: EvidenceBundle;
+  encryptedBundle: PrivacyEvidenceBundle;
   encryptedPayload: EncryptedPayload;
   encryptedPayloadHash: `0x${string}`;
   plaintextCommitmentHash: `0x${string}`;
@@ -113,17 +119,11 @@ export function encryptEvidenceBundle(params: {
     encryptSymmetricKeyForRecipient(symmetricKey, recipient)
   );
 
-  const encryptedBundle = redactBundle(params.bundle);
-  const bundleWithPrivacy = encryptedBundle as EvidenceBundle & {
-    privacy_mode?: boolean;
-    encrypted_payload_hash?: `0x${string}`;
-    plaintext_commitment_hash?: `0x${string}`;
-    key_envelopes?: BundleKeyEnvelope[];
-  };
-  bundleWithPrivacy.privacy_mode = true;
-  bundleWithPrivacy.encrypted_payload_hash = encryptedPayloadHash;
-  bundleWithPrivacy.plaintext_commitment_hash = plaintextCommitmentHash;
-  bundleWithPrivacy.key_envelopes = keyEnvelopes;
+  const encryptedBundle: PrivacyEvidenceBundle = redactBundle(params.bundle);
+  encryptedBundle.privacy_mode = true;
+  encryptedBundle.encrypted_payload_hash = encryptedPayloadHash;
+  encryptedBundle.plaintext_commitment_hash = plaintextCommitmentHash;
+  encryptedBundle.key_envelopes = keyEnvelopes;
 
   return {
     encryptedBundle,
@@ -134,14 +134,11 @@ export function encryptEvidenceBundle(params: {
 }
 
 export function decryptEvidenceBundle(params: {
-  encryptedBundle: EvidenceBundle;
+  encryptedBundle: PrivacyEvidenceBundle;
   encryptedPayload: EncryptedPayload;
   recipientPrivateKey: string;
 }): EvidenceBundle {
-  const bundleWithPrivacy = params.encryptedBundle as EvidenceBundle & {
-    key_envelopes?: BundleKeyEnvelope[];
-    plaintext_commitment_hash?: `0x${string}`;
-  };
+  const bundleWithPrivacy = params.encryptedBundle;
 
   const envelope = bundleWithPrivacy.key_envelopes?.find((entry: BundleKeyEnvelope) => {
     const ecdh = createECDH('secp256k1');
