@@ -393,7 +393,10 @@ export interface ReceiptExplain {
   uncertain_claims: Array<{
     claim_id: string;
     text: string;
+    /** @deprecated Legacy field; new receipts record process_confidence. */
     confidence?: number;
+    /** 0-1 confidence in the claim-extraction process, not in the claim's truth. */
+    process_confidence?: number;
     reason: string;
   }>;
   score_adjustments: Array<{

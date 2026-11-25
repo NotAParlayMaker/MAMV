@@ -88,7 +88,7 @@ The `explain` object is stable, machine-readable, and versioned.
 - `score_components`: Array of named score components with optional weights
 - `checks`: Extensible namespace for checks (`citations`, `contradictions`, `disagreement`, `policy`)
 - `checks_fired`: Summary list of checks that triggered during verification
-- `uncertain_claims`: Claim-level uncertainty list with reasons
+- `uncertain_claims`: Claim-level uncertainty list with reasons. `process_confidence` (0–1) describes the claim-extraction process, not the claim's truth; the legacy `confidence` field is still accepted for older receipts.
 - `score_adjustments`: Component-level score contributions and direction
 - `contradictions_found`: Structured contradictions list
 - `citation_checks`: Per-claim citation verdicts
