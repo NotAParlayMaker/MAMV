@@ -1,4 +1,5 @@
 import { VerificationPipeline } from '../../src/ovp';
+import { ShiftedPrimeChecker } from '../../src/ovp/checkers/shiftedPrime';
 
 const family = [['0', '1', '0'], ['0', '0', '1']];
 const verify = (checks: unknown[]) => new VerificationPipeline().verifyMathPaper(JSON.stringify(checks));
@@ -35,7 +36,10 @@ test('keeps large integers exact and rejects malformed inputs', async () => {
 
 test('records only the declared checker identity in each finding', async () => {
   const run = await verify([{ kind: 'theorem_1_2', polynomials: family }]);
-  expect(JSON.parse(JSON.stringify(run.findings[0].checker))).toEqual({ name: 'shifted_prime', version: '1.0.0' });
+  const { name, version } = new ShiftedPrimeChecker();
+  expect(JSON.parse(JSON.stringify(run.findings[0].checker))).toEqual({ name, version });
+});
+
 test('checks every point in a finite witness using exact arithmetic', async () => {
   const x = '9007199254740993';
   const set = [x, '9007199254740995', '9007199254740997'];
