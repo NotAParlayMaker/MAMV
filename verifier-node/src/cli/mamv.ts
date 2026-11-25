@@ -32,6 +32,13 @@ async function main() {
     case 'admin':
       await runAdminCli(rest);
       break;
+    case 'verify-math-paper': {
+      const [file] = rest;
+      if (rest.length !== 1) throw new Error('Usage: mamv verify-math-paper CHECKS.json');
+      const run = await new VerificationPipeline().verifyMathPaper(readFileSync(file, 'utf8'));
+      process.stdout.write(jsonReport(run));
+      break;
+    }
     case 'verify': {
       const [file] = rest;
       if (!file) throw new Error('Usage: mamv verify FILE');
@@ -54,7 +61,7 @@ async function main() {
     }
     default:
       process.stderr.write(
-        'Usage: mamv <verify|verify-claim|verify-argument|auditor|encrypt-bundle|decrypt-bundle|benchmark|admin> [args]\n'
+        'Usage: mamv <verify|verify-math-paper|verify-claim|verify-argument|auditor|encrypt-bundle|decrypt-bundle|benchmark|admin> [args]\n'
       );
       process.exit(1);
   }
