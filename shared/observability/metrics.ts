@@ -1,11 +1,10 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const client = require('prom-client') as {
-  Registry: new () => PromRegistry;
-  collectDefaultMetrics: (params: { register: unknown }) => void;
-  Gauge: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { set: (value: number) => void } };
-  Histogram: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { observe: (value: number) => void } };
-  Counter: new (config: Record<string, unknown>) => { labels: (...args: string[]) => { inc: (value?: number) => void } };
-};
+type GaugeValue = { set: (value: number) => void; inc: (value?: number) => void; dec: (value?: number) => void };
+type HistogramValue = { observe: (value: number) => void };
+type CounterValue = { inc: (value?: number) => void };
+
+export type GaugeMetric = GaugeValue & { labels: (...args: string[]) => GaugeValue };
+export type HistogramMetric = HistogramValue & { labels: (...args: string[]) => HistogramValue };
+export type CounterMetric = CounterValue & { labels: (...args: string[]) => CounterValue };
 
 type PromRegistry = {
   setDefaultLabels: (labels: Record<string, string>) => void;
@@ -13,29 +12,27 @@ type PromRegistry = {
   contentType: string;
 };
 
-type Metric = {
-  labels: (...args: string[]) => {
-    set?: (value: number) => void;
-    observe?: (value: number) => void;
-    inc?: (value?: number) => void;
-  };
-  set?: (value: number) => void;
-  observe?: (value: number) => void;
-  inc?: (value?: number) => void;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const client = require('prom-client') as {
+  Registry: new () => PromRegistry;
+  collectDefaultMetrics: (params: { register: unknown }) => void;
+  Gauge: new (config: Record<string, unknown>) => GaugeMetric;
+  Histogram: new (config: Record<string, unknown>) => HistogramMetric;
+  Counter: new (config: Record<string, unknown>) => CounterMetric;
 };
 
 export type MetricsRegistry = {
   register: PromRegistry;
   metrics: {
-    queueDepth: Metric;
-    activeJobs: Metric;
-    jobLatencyMs: Metric;
-    providerLatencyMs: Metric;
-    chainFinalityMs: Metric;
-    providerErrorsTotal: Metric;
-    jobsFailedTotal: Metric;
-    cacheHitsTotal: Metric;
-    cacheMissesTotal: Metric;
+    queueDepth: GaugeMetric;
+    activeJobs: GaugeMetric;
+    jobLatencyMs: HistogramMetric;
+    providerLatencyMs: HistogramMetric;
+    chainFinalityMs: HistogramMetric;
+    providerErrorsTotal: CounterMetric;
+    jobsFailedTotal: CounterMetric;
+    cacheHitsTotal: CounterMetric;
+    cacheMissesTotal: CounterMetric;
   };
 };
 

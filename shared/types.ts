@@ -11,7 +11,8 @@ import type { ReasoningTraceCommitment, ZKProofAttachment } from './transparency
 export interface EvidenceBundleV01 {
   // Metadata
   schema_version: '1';
-  version: '1.0.0';
+  /** '1.1.0' is emitted by evidenceBundlerV2 and validated by evidence_bundle.v2. */
+  version: '1.0.0' | '1.1.0';
   task_id: number | string;
   bundle_version: '0.1' | '0.2';
   created_at: string;              // ISO 8601 timestamp
@@ -245,6 +246,15 @@ export {
 } from './transparency';
 
 export type EvidenceBundle = EvidenceBundleV01 | EvidenceBundleV02 | EvidenceBundleV03;
+
+/**
+ * An evidence bundle before signing. Distributes over the version union so
+ * that version-specific fields (input, replay, ...) are preserved; a plain
+ * Omit<EvidenceBundle, 'signatures'> collapses to the shared keys only.
+ */
+export type UnsignedEvidenceBundle = EvidenceBundle extends infer B
+  ? B extends EvidenceBundle ? Omit<B, 'signatures'> : never
+  : never;
 
 // ============================================================================
 // Model Run
