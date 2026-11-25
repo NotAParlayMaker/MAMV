@@ -83,3 +83,19 @@ checker provenance. The scope is the submitted checks. Reading a PDF,
 identifying the intended theorem, checking asymptotic hypotheses, and
 validating the full proof require separate review.
 [Source, Theorem 1.2](https://arxiv.org/pdf/2608.19525v1#page=2)
+
+Use `progression_witness` to check a specific starting point and set.
+For example, `{"kind":"progression_witness","polynomials":[["0","1"],["0","0","1"]],"p":3,"x":"1","set":["1","3","5"]}`
+computes the points 1, 3, and 5 and checks membership for all three, including
+the starting point. The report records the points and lists any missing
+members. Supply `x` and set members as positive decimal integer strings.
+
+Use `theorem_1_3` to check a claimed case for a progression formed from
+integer multiples of one polynomial. For example,
+`{"kind":"theorem_1_3","polynomial":["0","0","1"],"multipliers":["1","2"],"part":3}`
+checks the claim that part (3) applies to the algebraic configuration.
+The report records the derivative at zero, the progression length, and
+the density bound for the case selected by those values. An incorrect
+part is flagged and the applicable part is shown when the algebraic
+hypotheses hold. Checking the avoidance condition and the sufficiently
+large `N` regime requires separate evidence.
